@@ -43,13 +43,16 @@ type
     procedure BrookURLRouter1Routes1Request(ASender: TObject;
       ARoute: TBrookURLRoute; ARequest: TBrookHTTPRequest;
       AResponse: TBrookHTTPResponse);
+    procedure BrookURLRouter1Routes2Request(ASender: TObject;
+      ARoute: TBrookURLRoute; ARequest: TBrookHTTPRequest;
+      AResponse: TBrookHTTPResponse);
     procedure edPortChange(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure lbLinkClick(Sender: TObject);
     procedure lbLinkMouseEnter(Sender: TObject);
     procedure lbLinkMouseLeave(Sender: TObject);
   private
-
+   function IsAuthenticated(ARequest: TBrookHTTPRequest; AResponse: TBrookHTTPResponse): Boolean;
   public
    procedure UpdateControls; {$IFNDEF DEBUG}inline;{$ENDIF}
   end;
@@ -60,6 +63,28 @@ var
 implementation
 
 {$R *.lfm}
+
+///Cek Auth
+function TFormUtama.IsAuthenticated(ARequest: TBrookHTTPRequest; AResponse: TBrookHTTPResponse): Boolean;
+var
+  vToken: string;
+begin
+  Result := False;
+  // Mengambil token dari header 'Authorization'
+  vToken := ARequest.Headers.Values['Authorization'];
+
+  // Contoh validasi sederhana:
+  // Dalam prakteknya, Anda bisa mencocokkan vToken ini dengan field 'token' di tabel users
+  if (vToken <> '') and (vToken = 'NfiKreatif2026') then
+  begin
+    Result := True;
+  end
+  else
+  begin
+    AResponse.Send('{"status": "error", "message": "Unauthorized: Token tidak valid atau absen"}',
+      'application/json', 401);
+  end;
+end;
 
 procedure TFormUtama.acStartExecute(Sender: TObject);
 begin
@@ -117,9 +142,139 @@ procedure TFormUtama.BrookURLRouter1Routes1Request(ASender: TObject;
   AResponse: TBrookHTTPResponse);
 var
   vNama, vKode: string;
+  JSONData: TJSONData;
   JSONArray: TJSONArray;
   JSONObject: TJSONObject;
 begin
+  //--- PROTEKSI AUTH ---
+  if not IsAuthenticated(ARequest, AResponse) then Exit;
+  // Jika tidak auth, fungsi di atas sudah mengirim pesan error dan kita langsung Exit.
+   // 1. Cek apakah metode yang dikirim adalah POST
+  if ARequest.Method = 'POST' then
+begin
+  JSONData := nil; // Inisialisasi agar aman
+  try
+    // Ambil data payload
+    vNama := ARequest.Payload.ToString;
+    if vNama = '' then raise Exception.Create('Payload kosong');
+
+    JSONData := GetJSON(vNama);
+    if not Assigned(JSONData) then raise Exception.Create('Format JSON tidak valid');
+
+    JSONObject := TJSONObject(JSONData);
+
+    // Setup Database
+    SQLQueryBarang.Close;
+    SQLQueryBarang.SQL.Text := 'INSERT INTO barang (nama_barang, kategori, harga, stok, id_user_admin) ' +
+                               'VALUES (:nama, :kategori, :harga, :stok, :user)';
+
+    // Gunakan JSONObject.Get dengan default value agar tidak SIGSEGV jika field absen
+    SQLQueryBarang.ParamByName('nama').AsString := JSONObject.Get('nama', '');
+    SQLQueryBarang.ParamByName('kategori').AsString := JSONObject.Get('kategori', 'Umum');
+    SQLQueryBarang.ParamByName('harga').AsFloat := JSONObject.Get('harga', 0.0);
+    SQLQueryBarang.ParamByName('stok').AsInteger := JSONObject.Get('stok', 0);
+    SQLQueryBarang.ParamByName('user').AsInteger := JSONObject.Get('id_user', 1);
+
+    if not SQLite3Connection1.Connected then SQLite3Connection1.Open;
+
+    SQLQueryBarang.ExecSQL;
+
+    // PENTING: Gunakan CommitRetaining untuk SQLite agar tidak LOCK
+    SQLTransactionBarang.CommitRetaining;
+
+    AResponse.Send('{"status": "success"}', 'application/json', 201);
+  except
+    on E: Exception do
+    begin
+      if SQLTransactionBarang.Active then SQLTransactionBarang.RollbackRetaining;
+      AResponse.SendFmt('{"status": "error", "message": "%s"}', [E.Message], 'application/json', 500);
+    end;
+  end;
+
+  if Assigned(JSONData) then JSONData.Free; // Bebaskan memori
+  Exit; // Hentikan proses agar tidak masuk ke blok GET
+  end
+  // --- BAGIAN PUT (UPDATE DATA) ---
+  else if ARequest.Method = 'PUT' then
+  begin
+    JSONData := nil;
+    try
+      vNama := ARequest.Payload.ToString;
+      if vNama = '' then raise Exception.Create('Payload kosong');
+
+      JSONData := GetJSON(vNama);
+      if not Assigned(JSONData) then raise Exception.Create('Format JSON tidak valid');
+
+      JSONObject := TJSONObject(JSONData);
+
+      // Kita butuh ID untuk menentukan barang mana yang diupdate
+      // Bisa diambil dari JSON body: {"id": 1, "nama": "Baru", ...}
+      if JSONObject.Find('id') = nil then
+        raise Exception.Create('ID barang harus disertakan untuk proses update');
+
+      SQLQueryBarang.Close;
+      SQLQueryBarang.SQL.Text :=
+        'UPDATE barang SET nama_barang = :nama, kategori = :kategori, ' +
+        'harga = :harga, stok = :stok WHERE id_barang = :id';
+
+      // Mapping parameter
+      SQLQueryBarang.ParamByName('id').AsInteger := JSONObject.Get('id', 0);
+      SQLQueryBarang.ParamByName('nama').AsString := JSONObject.Get('nama', '');
+      SQLQueryBarang.ParamByName('kategori').AsString := JSONObject.Get('kategori', 'Umum');
+      SQLQueryBarang.ParamByName('harga').AsFloat := JSONObject.Get('harga', 0.0);
+      SQLQueryBarang.ParamByName('stok').AsInteger := JSONObject.Get('stok', 0);
+
+      if not SQLite3Connection1.Connected then SQLite3Connection1.Open;
+
+      SQLQueryBarang.ExecSQL;
+      SQLTransactionBarang.CommitRetaining;
+
+      AResponse.Send('{"status": "success", "message": "Data berhasil diperbarui"}',
+        'application/json', 200);
+    except
+      on E: Exception do
+      begin
+        if SQLTransactionBarang.Active then SQLTransactionBarang.RollbackRetaining;
+        AResponse.SendFmt('{"status": "error", "message": "%s"}', [E.Message], 'application/json', 500);
+      end;
+    end;
+    if Assigned(JSONData) then JSONData.Free;
+    Exit;
+  end
+  // --- BAGIAN DELETE (HAPUS DATA) ---
+  else if ARequest.Method = 'DELETE' then
+  begin
+    try
+      // Mengambil ID dari parameter URL, misal: /produk?id=10
+      vKode := ARequest.Params.Values['id'];
+
+      if vKode = '' then
+        raise Exception.Create('ID barang harus disertakan untuk proses penghapusan (gunakan ?id=...)');
+
+      SQLQueryBarang.Close;
+      SQLQueryBarang.SQL.Text := 'DELETE FROM barang WHERE id_barang = :id';
+      SQLQueryBarang.ParamByName('id').AsInteger := StrToIntDef(vKode, 0);
+
+      if not SQLite3Connection1.Connected then SQLite3Connection1.Open;
+
+      SQLQueryBarang.ExecSQL;
+
+      // Sangat penting untuk melepaskan lock file SQLite
+      SQLTransactionBarang.CommitRetaining;
+
+      AResponse.Send('{"status": "success", "message": "Data dengan ID ' + vKode + ' berhasil dihapus"}',
+        'application/json', 200);
+    except
+      on E: Exception do
+      begin
+        if SQLTransactionBarang.Active then SQLTransactionBarang.RollbackRetaining;
+        AResponse.SendFmt('{"status": "error", "message": "%s"}', [E.Message], 'application/json', 500);
+      end;
+    end;
+    Exit; // Hentikan proses agar tidak lanjut ke blok GET
+  end
+  else
+  begin
   // Menggunakan Params untuk menangkap ?nama=... dan ?kode=...
   vNama := ARequest.Params.Values['nama'];
   vKode := ARequest.Params.Values['kode'];
@@ -149,7 +304,7 @@ begin
       SQLQueryBarang.ParamByName('nama').AsString := '%' + vNama + '%';
     end;
 
-    SQLQueryBarang.SQL.Add('LIMIT 10000');
+    SQLQueryBarang.SQL.Add('LIMIT 100');
 
     if not SQLite3Connection1.Connected then
       SQLite3Connection1.Open;
@@ -173,6 +328,76 @@ begin
     SQLQueryBarang.Close;
     // JSONArray dikelola oleh AResponse.Send
   end;
+
+  end;
+end;
+
+procedure TFormUtama.BrookURLRouter1Routes2Request(ASender: TObject;
+  ARoute: TBrookURLRoute; ARequest: TBrookHTTPRequest;
+  AResponse: TBrookHTTPResponse);
+var
+  JSONData: TJSONData;
+  JSONObject, JSONRes: TJSONObject;
+  vUser, vPass: string;
+begin
+   if ARequest.Method <> 'POST' then
+  begin
+    AResponse.Send('{"error": "Gunakan metode POST untuk login"}', 'application/json', 405);
+    Exit;
+  end;
+
+  JSONData := nil;
+  try
+    // 1. Ambil Kredensial dari Body JSON
+    JSONData := GetJSON(ARequest.Payload.ToString);
+    if not Assigned(JSONData) then raise Exception.Create('Data login tidak valid');
+
+    JSONObject := TJSONObject(JSONData);
+    vUser := JSONObject.Get('username', '');
+    vPass := JSONObject.Get('password', '');
+
+    if (vUser = '') or (vPass = '') then
+      raise Exception.Create('Username dan Password harus diisi');
+
+    // 2. Query ke Database Users
+    SQLQueryBarang.Close; // Kita bisa pakai query component yang sama atau buat baru
+    SQLQueryBarang.SQL.Text := 'SELECT id_user, username, email FROM users ' +
+                               'WHERE username = :user AND password = :pass LIMIT 1';
+    SQLQueryBarang.ParamByName('user').AsString := vUser;
+    SQLQueryBarang.ParamByName('pass').AsString := vPass; // Catatan: Sebaiknya gunakan Hash SHA1
+
+    if not SQLite3Connection1.Connected then SQLite3Connection1.Open;
+    SQLQueryBarang.Open;
+
+    // 3. Cek Apakah User Ditemukan
+    if not SQLQueryBarang.EOF then
+    begin
+      JSONRes := TJSONObject.Create;
+      try
+        JSONRes.Add('status', 'success');
+        JSONRes.Add('message', 'Login Berhasil');
+        JSONRes.Add('user_id', SQLQueryBarang.FieldByName('id_user').AsInteger);
+        JSONRes.Add('username', SQLQueryBarang.FieldByName('username').AsString);
+
+        // Di sini Anda bisa menambahkan Token jika ingin menggunakan JWT/Token Auth
+        AResponse.Send(JSONRes.AsJSON, 'application/json', 200);
+      finally
+        JSONRes.Free;
+      end;
+    end
+    else
+    begin
+      AResponse.Send('{"status": "error", "message": "Username atau Password salah"}',
+        'application/json', 401);
+    end;
+
+  except
+    on E: Exception do
+      AResponse.SendFmt('{"status": "error", "message": "%s"}', [E.Message], 'application/json', 500);
+  end;
+
+  if Assigned(JSONData) then JSONData.Free;
+  SQLQueryBarang.Close;
 end;
 
 procedure TFormUtama.edPortChange(Sender: TObject);
@@ -214,4 +439,5 @@ begin
 end;
 
 end.
+
 

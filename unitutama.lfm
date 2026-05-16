@@ -6,24 +6,24 @@ object FormUtama: TFormUtama
   Caption = 'FormUtama'
   ClientHeight = 240
   ClientWidth = 730
-  LCLVersion = '4.4.0.0'
   OnShow = FormShow
+  LCLVersion = '3.6.0.0'
   object lbPort: TLabel
     Left = 20
-    Height = 15
+    Height = 16
     Top = 22
-    Width = 22
+    Width = 26
     Caption = 'Port'
     ParentColor = False
   end
   object edPort: TSpinEdit
     Left = 49
-    Height = 23
+    Height = 28
     Top = 17
     Width = 66
     MaxValue = 65535
-    TabOrder = 0
     OnChange = edPortChange
+    TabOrder = 0
   end
   object btStart: TButton
     Left = 128
@@ -44,9 +44,9 @@ object FormUtama: TFormUtama
   object lbLink: TLabel
     Cursor = crHandPoint
     Left = 20
-    Height = 15
+    Height = 16
     Top = 64
-    Width = 83
+    Width = 93
     Caption = 'http://localhost'
     Enabled = False
     Font.Color = clBlue
@@ -63,15 +63,15 @@ object FormUtama: TFormUtama
     object acStart: TAction
       Category = 'HTTP server'
       Caption = '&Start'
-      ShortCut = 120
       OnExecute = acStartExecute
+      ShortCut = 120
     end
     object acStop: TAction
       Category = 'HTTP server'
       Caption = 'S&top'
       Enabled = False
-      ShortCut = 121
       OnExecute = acStopExecute
+      ShortCut = 121
     end
   end
   object BrookHTTPServer1: TBrookHTTPServer
@@ -93,8 +93,13 @@ object FormUtama: TFormUtama
       end    
       item
         Pattern = '/produk'
-        Methods = [rmGET]
+        Methods = [rmGET, rmPOST, rmPUT, rmDELETE]
         OnRequest = BrookURLRouter1Routes1Request
+      end    
+      item
+        Pattern = '/login'
+        Methods = [rmPOST]
+        OnRequest = BrookURLRouter1Routes2Request
       end>
     Left = 168
     Top = 144
@@ -102,7 +107,7 @@ object FormUtama: TFormUtama
   object SQLite3Connection1: TSQLite3Connection
     Connected = True
     LoginPrompt = False
-    DatabaseName = 'D:\data\belajar brook fremwork\rest_api_sqlite\db\dbtest.db'
+    DatabaseName = '/home/ismail/Documents/rest_api_sqlite-main/db/dbtest.db'
     KeepConnection = False
     Transaction = SQLTransactionBarang
     AlwaysUseBigint = False
@@ -122,7 +127,7 @@ object FormUtama: TFormUtama
     Top = 119
   end
   object SQLTransactionBarang: TSQLTransaction
-    Active = True
+    Active = False
     Database = SQLite3Connection1
     Left = 480
     Top = 126
