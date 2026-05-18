@@ -1,7 +1,3 @@
-Berikut adalah draf lengkap dokumen `README.md` yang siap kamu gunakan di repositori GitHub milikmu. Dokumentasi ini disusun secara terstruktur, profesional, dan mudah dipahami oleh developer lain yang ingin mencoba project ini.
-
----
-
 # REST API Dasar dengan Brook Framework & SQLite
 
 Project ini adalah contoh implementasi **REST API** performa tinggi menggunakan bahasa pemrograman **Pascal** via **Brook Framework** dan database **SQLite**. Aplikasi ini dirancang menggunakan arsitektur GUI di Lazarus, namun berfungsi penuh sebagai web server backend yang menyediakan fitur autentikasi (*Simple Auth* & *Token Auth*) serta manajemen data produk (**CRUD**).
