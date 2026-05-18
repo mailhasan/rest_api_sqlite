@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, SQLite3Conn, SQLDB, Forms, Controls, Graphics, Dialogs,
-  Spin, LCLIntf, StdCtrls, ActnList, BrookHTTPServer, BrookURLRouter,
+  Spin, LCLIntf, StdCtrls, ActnList, ZDataset, BrookHTTPServer, BrookURLRouter,
   BrookHTTPResponse, BrookHTTPRequest, BrookUtility, fpjson,jsonparser;
 
 type
@@ -25,7 +25,9 @@ type
     lbLink: TLabel;
     lbPort: TLabel;
     SQLite3Connection1: TSQLite3Connection;
+    SQLQueryUser: TSQLQuery;
     SQLQueryBarang: TSQLQuery;
+    SQLTransactionUser: TSQLTransaction;
     SQLTransactionBarang: TSQLTransaction;
     procedure acStartExecute(Sender: TObject);
     procedure acStopExecute(Sender: TObject);
@@ -46,6 +48,12 @@ type
     procedure BrookURLRouter1Routes2Request(ASender: TObject;
       ARoute: TBrookURLRoute; ARequest: TBrookHTTPRequest;
       AResponse: TBrookHTTPResponse);
+    procedure BrookURLRouter1Routes2RequestMethod(ASender: TObject;
+      ARoute: TBrookURLRoute; ARequest: TBrookHTTPRequest;
+      AResponse: TBrookHTTPResponse; var AAllowed: Boolean);
+    procedure BrookURLRouter1Routes3Request(ASender: TObject;
+      ARoute: TBrookURLRoute; ARequest: TBrookHTTPRequest;
+      AResponse: TBrookHTTPResponse);
     procedure edPortChange(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure lbLinkClick(Sender: TObject);
@@ -53,6 +61,7 @@ type
     procedure lbLinkMouseLeave(Sender: TObject);
   private
    function IsAuthenticated(ARequest: TBrookHTTPRequest; AResponse: TBrookHTTPResponse): Boolean;
+   function IsAuthenticatedtoken(ARequest: TBrookHTTPRequest; AResponse: TBrookHTTPResponse): Boolean;
   public
    procedure UpdateControls; {$IFNDEF DEBUG}inline;{$ENDIF}
   end;
@@ -64,7 +73,7 @@ implementation
 
 {$R *.lfm}
 
-///Cek Auth
+///Cek Auth simpel
 function TFormUtama.IsAuthenticated(ARequest: TBrookHTTPRequest; AResponse: TBrookHTTPResponse): Boolean;
 var
   vToken: string;
@@ -75,7 +84,7 @@ begin
 
   // Contoh validasi sederhana:
   // Dalam prakteknya, Anda bisa mencocokkan vToken ini dengan field 'token' di tabel users
-  if (vToken <> '') and (vToken = 'NfiKreatif2026') then
+  if (vToken <> '') and (vToken = 'ismail') then
   begin
     Result := True;
   end
@@ -84,6 +93,34 @@ begin
     AResponse.Send('{"status": "error", "message": "Unauthorized: Token tidak valid atau absen"}',
       'application/json', 401);
   end;
+end;
+
+///Cek Auth db tabel token
+function TFormUtama.IsAuthenticatedtoken(ARequest: TBrookHTTPRequest; AResponse: TBrookHTTPResponse): Boolean;
+var
+  vToken: string;
+begin
+  Result := False;
+  vToken := ARequest.Headers.Values['Authorization'];
+
+  if vToken = '' then
+  begin
+    AResponse.Send('{"error": "Token missing"}', 'application/json', 401);
+    Exit;
+  end;
+
+  // Cek ke database apakah token ini milik user yang aktif
+  SQLQueryUser.Close;
+  SQLQueryUser.SQL.Text := 'SELECT id_user FROM users WHERE token = :token LIMIT 1';
+  SQLQueryUser.ParamByName('token').AsString := vToken;
+  SQLQueryUser.Open;
+
+  if not SQLQueryUser.EOF then
+    Result := True
+  else
+    AResponse.Send('{"error": "Token invalid"}', 'application/json', 401);
+
+  SQLQueryBarang.Close;
 end;
 
 procedure TFormUtama.acStartExecute(Sender: TObject);
@@ -147,7 +184,10 @@ var
   JSONObject: TJSONObject;
 begin
   //--- PROTEKSI AUTH ---
-  if not IsAuthenticated(ARequest, AResponse) then Exit;
+  /// auth simpel
+  //if not IsAuthenticated(ARequest, AResponse) then Exit;
+  /// auth token db
+  if not IsAuthenticatedtoken(ARequest, AResponse) then Exit;
   // Jika tidak auth, fungsi di atas sudah mengirim pesan error dan kita langsung Exit.
    // 1. Cek apakah metode yang dikirim adalah POST
   if ARequest.Method = 'POST' then
@@ -398,6 +438,77 @@ begin
 
   if Assigned(JSONData) then JSONData.Free;
   SQLQueryBarang.Close;
+end;
+
+procedure TFormUtama.BrookURLRouter1Routes2RequestMethod(ASender: TObject;
+  ARoute: TBrookURLRoute; ARequest: TBrookHTTPRequest;
+  AResponse: TBrookHTTPResponse; var AAllowed: Boolean);
+begin
+
+end;
+
+procedure TFormUtama.BrookURLRouter1Routes3Request(ASender: TObject;
+  ARoute: TBrookURLRoute; ARequest: TBrookHTTPRequest;
+  AResponse: TBrookHTTPResponse);
+var
+  JSONData: TJSONData;
+  JSONObject, JSONRes: TJSONObject;
+  vUser, vPass, vToken: string;
+  vID: Integer;
+begin
+  if ARequest.Method <> 'POST' then
+  begin
+    AResponse.Send('{"error": "Method not allowed"}', 'application/json', 405);
+    Exit;
+  end;
+
+  JSONData := nil;
+  try
+    JSONData := GetJSON(ARequest.Payload.ToString);
+    JSONObject := TJSONObject(JSONData);
+    vUser := JSONObject.Get('username', '');
+    vPass := JSONObject.Get('password', '');
+
+    // 1. Cek Kredensial
+    SQLQueryUser.Close;
+    SQLQueryUser.SQL.Text := 'SELECT id_user FROM users WHERE username = :user AND password = :pass';
+    SQLQueryUser.ParamByName('user').AsString := vUser;
+    SQLQueryUser.ParamByName('pass').AsString := vPass;
+    SQLQueryUser.Open;
+
+    if not SQLQueryUser.EOF then
+    begin
+      vID := SQLQueryUser.FieldByName('id_user').AsInteger;
+
+      // 2. Generate Token Otomatis (Menggunakan GUID)
+      vToken := Brook.SHA1(TGUID.NewGuid.ToString + vUser + DateTimeToStr(Now));
+
+      // 3. Simpan Token ke Database
+      SQLQueryUser.Close;
+      SQLQueryUser.SQL.Text := 'UPDATE users SET token = :token WHERE id_user = :id';
+      SQLQueryUser.ParamByName('token').AsString := vToken;
+      SQLQueryUser.ParamByName('id').AsInteger := vID;
+      SQLQueryUser.ExecSQL;
+      SQLTransactionUser.CommitRetaining;
+
+      // 4. Kirim Token ke Client
+      JSONRes := TJSONObject.Create;
+      try
+        JSONRes.Add('status', 'success');
+        JSONRes.Add('token', vToken); // Client harus menyimpan token ini
+        JSONRes.Add('username', vUser);
+        AResponse.Send(JSONRes.AsJSON, 'application/json', 200);
+      finally
+        JSONRes.Free;
+      end;
+    end
+    else
+      AResponse.Send('{"status": "error", "message": "Login gagal"}', 'application/json', 401);
+
+  finally
+    if Assigned(JSONData) then JSONData.Free;
+    SQLQueryBarang.Close;
+  end;
 end;
 
 procedure TFormUtama.edPortChange(Sender: TObject);

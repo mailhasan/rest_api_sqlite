@@ -1,10 +1,10 @@
 object FormUtama: TFormUtama
-  Left = 356
-  Height = 240
-  Top = 176
+  Left = 359
+  Height = 277
+  Top = 167
   Width = 730
   Caption = 'FormUtama'
-  ClientHeight = 240
+  ClientHeight = 277
   ClientWidth = 730
   LCLVersion = '4.4.0.0'
   OnShow = FormShow
@@ -93,16 +93,27 @@ object FormUtama: TFormUtama
       end    
       item
         Pattern = '/produk'
-        Methods = [rmGET]
+        Methods = [rmGET, rmPOST, rmPUT, rmDELETE]
         OnRequest = BrookURLRouter1Routes1Request
+      end    
+      item
+        Pattern = '/login'
+        Methods = [rmPOST]
+        OnRequestMethod = BrookURLRouter1Routes2RequestMethod
+        OnRequest = BrookURLRouter1Routes2Request
+      end    
+      item
+        Pattern = '/auth'
+        Methods = [rmPOST]
+        OnRequest = BrookURLRouter1Routes3Request
       end>
-    Left = 168
-    Top = 144
+    Left = 176
+    Top = 168
   end
   object SQLite3Connection1: TSQLite3Connection
     Connected = True
     LoginPrompt = False
-    DatabaseName = 'D:\data\belajar brook fremwork\rest_api_sqlite\db\dbtest.db'
+    DatabaseName = 'D:\data\belajar_brook_fremwork\rest_api_sqlite\db\dbtest.db'
     KeepConnection = False
     Transaction = SQLTransactionBarang
     AlwaysUseBigint = False
@@ -110,7 +121,45 @@ object FormUtama: TFormUtama
     Top = 47
   end
   object SQLQueryBarang: TSQLQuery
-    FieldDefs = <>
+    IndexName = 'DEFAULT_ORDER'
+    MaxIndexesCount = 4
+    FieldDefs = <    
+      item
+        Name = 'id_barang'
+        DataType = ftAutoInc
+        Precision = -1
+      end    
+      item
+        Name = 'nama_barang'
+        DataType = ftMemo
+        Precision = -1
+      end    
+      item
+        Name = 'kategori'
+        DataType = ftMemo
+        Precision = -1
+      end    
+      item
+        Name = 'harga'
+        DataType = ftFloat
+        Precision = -1
+      end    
+      item
+        Name = 'stok'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'id_user_admin'
+        DataType = ftInteger
+        Precision = -1
+      end    
+      item
+        Name = 'created_at'
+        DataType = ftDateTime
+        Precision = -1
+      end>
+    Active = True
     Database = SQLite3Connection1
     Transaction = SQLTransactionBarang
     SQL.Strings = (
@@ -124,7 +173,58 @@ object FormUtama: TFormUtama
   object SQLTransactionBarang: TSQLTransaction
     Active = True
     Database = SQLite3Connection1
-    Left = 480
-    Top = 126
+    Left = 488
+    Top = 136
+  end
+  object SQLQueryUser: TSQLQuery
+    IndexName = 'DEFAULT_ORDER'
+    MaxIndexesCount = 4
+    FieldDefs = <    
+      item
+        Name = 'id_user'
+        DataType = ftAutoInc
+        Precision = -1
+      end    
+      item
+        Name = 'username'
+        DataType = ftMemo
+        Precision = -1
+      end    
+      item
+        Name = 'email'
+        DataType = ftMemo
+        Precision = -1
+      end    
+      item
+        Name = 'password'
+        DataType = ftMemo
+        Precision = -1
+      end    
+      item
+        Name = 'created_at'
+        DataType = ftDateTime
+        Precision = -1
+      end    
+      item
+        Name = 'token'
+        DataType = ftMemo
+        Precision = -1
+      end>
+    Active = True
+    Database = SQLite3Connection1
+    Transaction = SQLTransactionBarang
+    SQL.Strings = (
+      'select * from users'
+    )
+    Params = <>
+    Macros = <>
+    Left = 383
+    Top = 183
+  end
+  object SQLTransactionUser: TSQLTransaction
+    Active = False
+    Database = SQLite3Connection1
+    Left = 474
+    Top = 206
   end
 end
