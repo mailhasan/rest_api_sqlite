@@ -129,6 +129,27 @@ end;
 
 procedure TFormUtama.acStartExecute(Sender: TObject);
 begin
+  // --- KONFIGURASI ZEOS CONNECTION POOL ---
+  ZConnectiondb.Disconnect;
+
+  // Aktifkan fitur pooling bawaan Zeos 8.0
+  ZConnectiondb.Properties.Values['controls'] := 'true'; // Mengaktifkan pool manager
+  ZConnectiondb.Properties.Values['pooled'] := 'true';   // Menandakan koneksi ini dikelola pool
+
+  // Pengaturan kapasitas pool (sesuaikan dengan beban server)
+  ZConnectiondb.Properties.Values['maxconnections'] := '50'; // Batas maksimal koneksi terbuka
+  ZConnectiondb.Properties.Values['idle_timeout'] := '60';   // Durasi koneksi idle dilepas (detik)
+
+  try
+    ZConnectiondb.Connect;
+  except
+    on E: Exception do
+    begin
+      ShowMessage('Gagal inisialisasi Database Pool: ' + E.Message);
+      Exit;
+    end;
+  end;
+  // Jalankan HTTP Server Brook
   BrookURLRouter1.Open;
   BrookHTTPServer1.Open;
 end;

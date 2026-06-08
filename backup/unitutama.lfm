@@ -126,7 +126,7 @@ object FormUtama: TFormUtama
   object SQLQueryUser: TZQuery
     Connection = ZConnectiondb
     SQL.Strings = (
-      'select * from user'
+      'select * from users'
     )
     Params = <>
     Left = 353
@@ -136,6 +136,6 @@ object FormUtama: TFormUtama
     Connection = ZConnectiondb
     Params = <>
     Left = 424
-    Top = 162
+    Top = 160
   end
 end
