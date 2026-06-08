@@ -231,4 +231,16 @@ Semua request di bawah ini wajib menyertakan Header: `Authorization: <token>`
 
 ---
 
+## Metodologi Pengujian Beban (Load Testing)
+
+Pengujian performa backend dilakukan menggunakan pendekatan *Zero-Dependency Testing*, yaitu memanfaatkan perkakas portable bawaan Apache HTTP Server (**ApacheBench**) tanpa perlu menginstal runtime atau package manager pihak ketiga seperti Node.js/NPM di lingkungan PC Server/Development.
+
+### Langkah 1: Verifikasi Kakas Penguji (ApacheBench)
+
+Sebelum menjalankan skrip pengujian, pastikan bahwa berkas eksekusi ApacheBench (`ab.exe`) sudah tersedia di sistem Anda. 
+
+1. **Jalur Akses Default (XAMPP):** Jika Anda menggunakan XAMPP untuk Windows, alat ini secara default sudah terinstal dan berada pada direktori:
+   ```text
+   C:\xampp\apache\bin\ab.exe
+
 ## dikembangkan oleh [Ismail Hasan](https://www.google.com/search?q=https://ismailhasan.web.id) - **Nfi Kreatif**
