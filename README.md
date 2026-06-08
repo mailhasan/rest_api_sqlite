@@ -13,6 +13,7 @@ Project ini adalah contoh implementasi **REST API** performa tinggi menggunakan 
 
 * **Full CRUD:** Manajemen produk pada endpoint `/produk` yang sudah diproteksi oleh *Middleware Auth*.
 * **Keamanan:** Dilengkapi dengan *Parameterized Query* untuk mencegah celah *SQL Injection*.
+* Zeos Connection Pool 
 
 ---
 
