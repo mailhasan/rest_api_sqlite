@@ -110,121 +110,32 @@ object FormUtama: TFormUtama
     Left = 176
     Top = 168
   end
-  object SQLite3Connection1: TSQLite3Connection
-    Connected = True
-    LoginPrompt = False
-    DatabaseName = 'D:\data\belajar_brook_fremwork\rest_api_sqlite\db\dbtest.db'
-    KeepConnection = False
-    Transaction = SQLTransactionBarang
-    AlwaysUseBigint = False
-    Left = 369
-    Top = 47
-  end
-  object SQLQueryBarang: TSQLQuery
-    IndexName = 'DEFAULT_ORDER'
-    MaxIndexesCount = 4
-    FieldDefs = <    
-      item
-        Name = 'id_barang'
-        DataType = ftAutoInc
-        Precision = -1
-      end    
-      item
-        Name = 'nama_barang'
-        DataType = ftMemo
-        Precision = -1
-      end    
-      item
-        Name = 'kategori'
-        DataType = ftMemo
-        Precision = -1
-      end    
-      item
-        Name = 'harga'
-        DataType = ftFloat
-        Precision = -1
-      end    
-      item
-        Name = 'stok'
-        DataType = ftInteger
-        Precision = -1
-      end    
-      item
-        Name = 'id_user_admin'
-        DataType = ftInteger
-        Precision = -1
-      end    
-      item
-        Name = 'created_at'
-        DataType = ftDateTime
-        Precision = -1
-      end>
-    Active = True
-    Database = SQLite3Connection1
-    Transaction = SQLTransactionBarang
-    SQL.Strings = (
-      '   select * from barang'
+  object ZConnectiondb: TZConnection
+    ControlsCodePage = cCP_UTF8
+    Properties.Strings = (
+      'RawStringEncoding=DB_CP'
     )
-    Params = <>
-    Macros = <>
-    Left = 376
-    Top = 119
+    Connected = True
+    DisableSavepoints = False
+    Port = 0
+    Database = 'D:\data\belajar_brook_fremwork\rest_api_sqlite\db\dbtest.db'
+    Protocol = 'sqlite'
+    Left = 360
+    Top = 40
   end
-  object SQLTransactionBarang: TSQLTransaction
-    Active = True
-    Database = SQLite3Connection1
-    Left = 488
-    Top = 136
-  end
-  object SQLQueryUser: TSQLQuery
-    IndexName = 'DEFAULT_ORDER'
-    MaxIndexesCount = 4
-    FieldDefs = <    
-      item
-        Name = 'id_user'
-        DataType = ftAutoInc
-        Precision = -1
-      end    
-      item
-        Name = 'username'
-        DataType = ftMemo
-        Precision = -1
-      end    
-      item
-        Name = 'email'
-        DataType = ftMemo
-        Precision = -1
-      end    
-      item
-        Name = 'password'
-        DataType = ftMemo
-        Precision = -1
-      end    
-      item
-        Name = 'created_at'
-        DataType = ftDateTime
-        Precision = -1
-      end    
-      item
-        Name = 'token'
-        DataType = ftMemo
-        Precision = -1
-      end>
-    Active = True
-    Database = SQLite3Connection1
-    Transaction = SQLTransactionBarang
+  object SQLQueryUser: TZQuery
+    Connection = ZConnectiondb
     SQL.Strings = (
       'select * from users'
     )
     Params = <>
-    Macros = <>
-    Left = 383
-    Top = 183
+    Left = 353
+    Top = 115
   end
-  object SQLTransactionUser: TSQLTransaction
-    Active = False
-    Database = SQLite3Connection1
-    Left = 474
-    Top = 206
+  object SQLQueryBarang: TZQuery
+    Connection = ZConnectiondb
+    Params = <>
+    Left = 424
+    Top = 160
   end
 end

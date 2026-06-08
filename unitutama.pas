@@ -6,8 +6,9 @@ interface
 
 uses
   Classes, SysUtils, SQLite3Conn, SQLDB, Forms, Controls, Graphics, Dialogs,
-  Spin, LCLIntf, StdCtrls, ActnList, ZDataset, BrookHTTPServer, BrookURLRouter,
-  BrookHTTPResponse, BrookHTTPRequest, BrookUtility, fpjson,jsonparser;
+  Spin, LCLIntf, StdCtrls, ActnList, ZDataset, ZConnection, BrookHTTPServer,
+  BrookURLRouter, BrookHTTPResponse, BrookHTTPRequest, BrookUtility, fpjson,
+  jsonparser;
 
 type
 
@@ -24,11 +25,11 @@ type
     edPort: TSpinEdit;
     lbLink: TLabel;
     lbPort: TLabel;
-    SQLite3Connection1: TSQLite3Connection;
-    SQLQueryUser: TSQLQuery;
-    SQLQueryBarang: TSQLQuery;
     SQLTransactionUser: TSQLTransaction;
     SQLTransactionBarang: TSQLTransaction;
+    ZConnectiondb: TZConnection;
+    SQLQueryUser: TZQuery;
+    SQLQueryBarang: TZQuery;
     procedure acStartExecute(Sender: TObject);
     procedure acStopExecute(Sender: TObject);
     procedure BrookHTTPServer1Error(ASender: TObject; AException: Exception);
@@ -59,6 +60,7 @@ type
     procedure lbLinkClick(Sender: TObject);
     procedure lbLinkMouseEnter(Sender: TObject);
     procedure lbLinkMouseLeave(Sender: TObject);
+    procedure ZConnection1AfterReconnect(Sender: TObject);
   private
    function IsAuthenticated(ARequest: TBrookHTTPRequest; AResponse: TBrookHTTPResponse): Boolean;
    function IsAuthenticatedtoken(ARequest: TBrookHTTPRequest; AResponse: TBrookHTTPResponse): Boolean;
@@ -79,11 +81,8 @@ var
   vToken: string;
 begin
   Result := False;
-  // Mengambil token dari header 'Authorization'
   vToken := ARequest.Headers.Values['Authorization'];
 
-  // Contoh validasi sederhana:
-  // Dalam prakteknya, Anda bisa mencocokkan vToken ini dengan field 'token' di tabel users
   if (vToken <> '') and (vToken = 'ismail') then
   begin
     Result := True;
@@ -109,18 +108,23 @@ begin
     Exit;
   end;
 
-  // Cek ke database apakah token ini milik user yang aktif
-  SQLQueryUser.Close;
-  SQLQueryUser.SQL.Text := 'SELECT id_user FROM users WHERE token = :token LIMIT 1';
-  SQLQueryUser.ParamByName('token').AsString := vToken;
-  SQLQueryUser.Open;
+  try
+    if not ZConnectiondb.Connected then ZConnectiondb.Connect;
 
-  if not SQLQueryUser.EOF then
-    Result := True
-  else
-    AResponse.Send('{"error": "Token invalid"}', 'application/json', 401);
+    SQLQueryUser.Close;
+    SQLQueryUser.SQL.Text := 'SELECT id_user FROM users WHERE token = :token LIMIT 1';
+    SQLQueryUser.ParamByName('token').AsString := vToken;
+    SQLQueryUser.Open;
 
-  SQLQueryBarang.Close;
+    // Cek apakah data token ditemukan
+    if not SQLQueryUser.IsEmpty then
+      Result := True
+    else
+      AResponse.Send('{"error": "Token invalid"}', 'application/json', 401);
+
+  finally
+    SQLQueryUser.Close;
+  end;
 end;
 
 procedure TFormUtama.acStartExecute(Sender: TObject);
@@ -183,56 +187,44 @@ var
   JSONArray: TJSONArray;
   JSONObject: TJSONObject;
 begin
-  //--- PROTEKSI AUTH ---
-  /// auth simpel
-  //if not IsAuthenticated(ARequest, AResponse) then Exit;
-  /// auth token db
   if not IsAuthenticatedtoken(ARequest, AResponse) then Exit;
-  // Jika tidak auth, fungsi di atas sudah mengirim pesan error dan kita langsung Exit.
-   // 1. Cek apakah metode yang dikirim adalah POST
+
+  if not ZConnectiondb.Connected then ZConnectiondb.Connect;
+
+  // --- BAGIAN POST (TAMBAH DATA) ---
   if ARequest.Method = 'POST' then
-begin
-  JSONData := nil; // Inisialisasi agar aman
-  try
-    // Ambil data payload
-    vNama := ARequest.Payload.ToString;
-    if vNama = '' then raise Exception.Create('Payload kosong');
+  begin
+    JSONData := nil;
+    try
+      vNama := ARequest.Payload.ToString;
+      if vNama = '' then raise Exception.Create('Payload kosong');
 
-    JSONData := GetJSON(vNama);
-    if not Assigned(JSONData) then raise Exception.Create('Format JSON tidak valid');
+      JSONData := GetJSON(vNama);
+      if not Assigned(JSONData) then raise Exception.Create('Format JSON tidak valid');
 
-    JSONObject := TJSONObject(JSONData);
+      JSONObject := TJSONObject(JSONData);
 
-    // Setup Database
-    SQLQueryBarang.Close;
-    SQLQueryBarang.SQL.Text := 'INSERT INTO barang (nama_barang, kategori, harga, stok, id_user_admin) ' +
-                               'VALUES (:nama, :kategori, :harga, :stok, :user)';
+      SQLQueryBarang.Close;
+      SQLQueryBarang.SQL.Text := 'INSERT INTO barang (nama_barang, kategori, harga, stok, id_user_admin) ' +
+                                 'VALUES (:nama, :kategori, :harga, :stok, :user)';
 
-    // Gunakan JSONObject.Get dengan default value agar tidak SIGSEGV jika field absen
-    SQLQueryBarang.ParamByName('nama').AsString := JSONObject.Get('nama', '');
-    SQLQueryBarang.ParamByName('kategori').AsString := JSONObject.Get('kategori', 'Umum');
-    SQLQueryBarang.ParamByName('harga').AsFloat := JSONObject.Get('harga', 0.0);
-    SQLQueryBarang.ParamByName('stok').AsInteger := JSONObject.Get('stok', 0);
-    SQLQueryBarang.ParamByName('user').AsInteger := JSONObject.Get('id_user', 1);
+      SQLQueryBarang.ParamByName('nama').AsString := JSONObject.Get('nama', '');
+      SQLQueryBarang.ParamByName('kategori').AsString := JSONObject.Get('kategori', 'Umum');
+      SQLQueryBarang.ParamByName('harga').AsFloat := JSONObject.Get('harga', 0.0);
+      SQLQueryBarang.ParamByName('stok').AsInteger := JSONObject.Get('stok', 0);
+      SQLQueryBarang.ParamByName('user').AsInteger := JSONObject.Get('id_user', 1);
 
-    if not SQLite3Connection1.Connected then SQLite3Connection1.Open;
+      // Zeos melakukan auto-commit secara default jika tidak diset manual transaction-nya
+      SQLQueryBarang.ExecSQL;
 
-    SQLQueryBarang.ExecSQL;
-
-    // PENTING: Gunakan CommitRetaining untuk SQLite agar tidak LOCK
-    SQLTransactionBarang.CommitRetaining;
-
-    AResponse.Send('{"status": "success"}', 'application/json', 201);
-  except
-    on E: Exception do
-    begin
-      if SQLTransactionBarang.Active then SQLTransactionBarang.RollbackRetaining;
-      AResponse.SendFmt('{"status": "error", "message": "%s"}', [E.Message], 'application/json', 500);
+      AResponse.Send('{"status": "success"}', 'application/json', 201);
+    except
+      on E: Exception do
+        AResponse.SendFmt('{"status": "error", "message": "%s"}', [E.Message], 'application/json', 500);
     end;
-  end;
 
-  if Assigned(JSONData) then JSONData.Free; // Bebaskan memori
-  Exit; // Hentikan proses agar tidak masuk ke blok GET
+    if Assigned(JSONData) then JSONData.Free;
+    Exit;
   end
   // --- BAGIAN PUT (UPDATE DATA) ---
   else if ARequest.Method = 'PUT' then
@@ -247,37 +239,28 @@ begin
 
       JSONObject := TJSONObject(JSONData);
 
-      // Kita butuh ID untuk menentukan barang mana yang diupdate
-      // Bisa diambil dari JSON body: {"id": 1, "nama": "Baru", ...}
       if JSONObject.Find('id') = nil then
         raise Exception.Create('ID barang harus disertakan untuk proses update');
 
       SQLQueryBarang.Close;
-      SQLQueryBarang.SQL.Text :=
-        'UPDATE barang SET nama_barang = :nama, kategori = :kategori, ' +
-        'harga = :harga, stok = :stok WHERE id_barang = :id';
+      SQLQueryBarang.SQL.Text := 'UPDATE barang SET nama_barang = :nama, kategori = :kategori, ' +
+                                 'harga = :harga, stok = :stok WHERE id_barang = :id';
 
-      // Mapping parameter
       SQLQueryBarang.ParamByName('id').AsInteger := JSONObject.Get('id', 0);
       SQLQueryBarang.ParamByName('nama').AsString := JSONObject.Get('nama', '');
       SQLQueryBarang.ParamByName('kategori').AsString := JSONObject.Get('kategori', 'Umum');
       SQLQueryBarang.ParamByName('harga').AsFloat := JSONObject.Get('harga', 0.0);
       SQLQueryBarang.ParamByName('stok').AsInteger := JSONObject.Get('stok', 0);
 
-      if not SQLite3Connection1.Connected then SQLite3Connection1.Open;
-
       SQLQueryBarang.ExecSQL;
-      SQLTransactionBarang.CommitRetaining;
 
       AResponse.Send('{"status": "success", "message": "Data berhasil diperbarui"}',
         'application/json', 200);
     except
       on E: Exception do
-      begin
-        if SQLTransactionBarang.Active then SQLTransactionBarang.RollbackRetaining;
         AResponse.SendFmt('{"status": "error", "message": "%s"}', [E.Message], 'application/json', 500);
-      end;
     end;
+
     if Assigned(JSONData) then JSONData.Free;
     Exit;
   end
@@ -285,7 +268,6 @@ begin
   else if ARequest.Method = 'DELETE' then
   begin
     try
-      // Mengambil ID dari parameter URL, misal: /produk?id=10
       vKode := ARequest.Params.Values['id'];
 
       if vKode = '' then
@@ -295,80 +277,60 @@ begin
       SQLQueryBarang.SQL.Text := 'DELETE FROM barang WHERE id_barang = :id';
       SQLQueryBarang.ParamByName('id').AsInteger := StrToIntDef(vKode, 0);
 
-      if not SQLite3Connection1.Connected then SQLite3Connection1.Open;
-
       SQLQueryBarang.ExecSQL;
-
-      // Sangat penting untuk melepaskan lock file SQLite
-      SQLTransactionBarang.CommitRetaining;
 
       AResponse.Send('{"status": "success", "message": "Data dengan ID ' + vKode + ' berhasil dihapus"}',
         'application/json', 200);
     except
       on E: Exception do
-      begin
-        if SQLTransactionBarang.Active then SQLTransactionBarang.RollbackRetaining;
         AResponse.SendFmt('{"status": "error", "message": "%s"}', [E.Message], 'application/json', 500);
-      end;
     end;
-    Exit; // Hentikan proses agar tidak lanjut ke blok GET
+    Exit;
   end
+  // --- BAGIAN GET (READ DATA) ---
   else
   begin
-  // Menggunakan Params untuk menangkap ?nama=... dan ?kode=...
-  vNama := ARequest.Params.Values['nama'];
-  vKode := ARequest.Params.Values['kode'];
+    vNama := ARequest.Params.Values['nama'];
+    vKode := ARequest.Params.Values['kode'];
 
-  JSONArray := TJSONArray.Create;
-  try
-    // Pastikan database terhubung
-    SQLite3Connection1.DatabaseName := 'database.db';
-    SQLQueryBarang.Database := SQLite3Connection1;
-    SQLQueryBarang.Transaction := SQLTransactionBarang;
+    JSONArray := TJSONArray.Create;
+    try
+      SQLQueryBarang.Close;
+      SQLQueryBarang.SQL.Clear;
+      SQLQueryBarang.SQL.Add('SELECT id_barang, nama_barang, harga, stok FROM barang WHERE 1=1');
 
-    SQLQueryBarang.Close;
-    SQLQueryBarang.SQL.Clear;
-    SQLQueryBarang.SQL.Add('SELECT id_barang, nama_barang, harga, stok FROM barang WHERE 1=1');
+      if vKode <> '' then
+      begin
+        SQLQueryBarang.SQL.Add('AND id_barang = :kode');
+        SQLQueryBarang.ParamByName('kode').AsString := vKode;
+      end;
 
-    // Filter Kode
-    if vKode <> '' then
-    begin
-      SQLQueryBarang.SQL.Add('AND id_barang = :kode');
-      SQLQueryBarang.ParamByName('kode').AsString := vKode;
+      if vNama <> '' then
+      begin
+        SQLQueryBarang.SQL.Add('AND nama_barang LIKE :nama');
+        SQLQueryBarang.ParamByName('nama').AsString := '%' + vNama + '%';
+      end;
+
+      SQLQueryBarang.SQL.Add('LIMIT 100');
+      SQLQueryBarang.Open;
+
+      while not SQLQueryBarang.EOF do
+      begin
+        JSONObject := TJSONObject.Create;
+        JSONObject.Add('id', SQLQueryBarang.FieldByName('id_barang').AsInteger);
+        JSONObject.Add('nama', SQLQueryBarang.FieldByName('nama_barang').AsString);
+        JSONObject.Add('harga', SQLQueryBarang.FieldByName('harga').AsFloat);
+        JSONObject.Add('stok', SQLQueryBarang.FieldByName('stok').AsInteger);
+        JSONArray.Add(JSONObject);
+        SQLQueryBarang.Next;
+      end;
+
+      AResponse.Send(JSONArray.AsJSON, 'application/json; charset=utf-8', 200);
+
+    finally
+      SQLQueryBarang.Close;
+      JSONArray.Free; // Pada versi terupdate, bebaskan array setelah dikonversi ke string JSON
     end;
-
-    // Filter Nama
-    if vNama <> '' then
-    begin
-      SQLQueryBarang.SQL.Add('AND nama_barang LIKE :nama');
-      SQLQueryBarang.ParamByName('nama').AsString := '%' + vNama + '%';
-    end;
-
-    SQLQueryBarang.SQL.Add('LIMIT 100');
-
-    if not SQLite3Connection1.Connected then
-      SQLite3Connection1.Open;
-
-    SQLQueryBarang.Open;
-
-    while not SQLQueryBarang.EOF do
-    begin
-      JSONObject := TJSONObject.Create;
-      JSONObject.Add('id', SQLQueryBarang.FieldByName('id_barang').AsInteger);
-      JSONObject.Add('nama', SQLQueryBarang.FieldByName('nama_barang').AsString);
-      JSONObject.Add('harga', SQLQueryBarang.FieldByName('harga').AsFloat);
-      JSONObject.Add('stok', SQLQueryBarang.FieldByName('stok').AsInteger);
-      JSONArray.Add(JSONObject);
-      SQLQueryBarang.Next;
-    end;
-
-    AResponse.Send(JSONArray.AsJSON, 'application/json; charset=utf-8', 200);
-
-  finally
-    SQLQueryBarang.Close;
-    // JSONArray dikelola oleh AResponse.Send
-  end;
-
   end;
 end;
 
@@ -380,7 +342,7 @@ var
   JSONObject, JSONRes: TJSONObject;
   vUser, vPass: string;
 begin
-   if ARequest.Method <> 'POST' then
+  if ARequest.Method <> 'POST' then
   begin
     AResponse.Send('{"error": "Gunakan metode POST untuk login"}', 'application/json', 405);
     Exit;
@@ -388,7 +350,6 @@ begin
 
   JSONData := nil;
   try
-    // 1. Ambil Kredensial dari Body JSON
     JSONData := GetJSON(ARequest.Payload.ToString);
     if not Assigned(JSONData) then raise Exception.Create('Data login tidak valid');
 
@@ -399,27 +360,24 @@ begin
     if (vUser = '') or (vPass = '') then
       raise Exception.Create('Username dan Password harus diisi');
 
-    // 2. Query ke Database Users
-    SQLQueryBarang.Close; // Kita bisa pakai query component yang sama atau buat baru
-    SQLQueryBarang.SQL.Text := 'SELECT id_user, username, email FROM users ' +
-                               'WHERE username = :user AND password = :pass LIMIT 1';
-    SQLQueryBarang.ParamByName('user').AsString := vUser;
-    SQLQueryBarang.ParamByName('pass').AsString := vPass; // Catatan: Sebaiknya gunakan Hash SHA1
+    if not ZConnectiondb.Connected then ZConnectiondb.Connect;
 
-    if not SQLite3Connection1.Connected then SQLite3Connection1.Open;
-    SQLQueryBarang.Open;
+    SQLQueryUser.Close;
+    SQLQueryUser.SQL.Text := 'SELECT id_user, username, email FROM users ' +
+                             'WHERE username = :user AND password = :pass LIMIT 1';
+    SQLQueryUser.ParamByName('user').AsString := vUser;
+    SQLQueryUser.ParamByName('pass').AsString := vPass;
+    SQLQueryUser.Open;
 
-    // 3. Cek Apakah User Ditemukan
-    if not SQLQueryBarang.EOF then
+    if not SQLQueryUser.IsEmpty then
     begin
       JSONRes := TJSONObject.Create;
       try
         JSONRes.Add('status', 'success');
         JSONRes.Add('message', 'Login Berhasil');
-        JSONRes.Add('user_id', SQLQueryBarang.FieldByName('id_user').AsInteger);
-        JSONRes.Add('username', SQLQueryBarang.FieldByName('username').AsString);
+        JSONRes.Add('user_id', SQLQueryUser.FieldByName('id_user').AsInteger);
+        JSONRes.Add('username', SQLQueryUser.FieldByName('username').AsString);
 
-        // Di sini Anda bisa menambahkan Token jika ingin menggunakan JWT/Token Auth
         AResponse.Send(JSONRes.AsJSON, 'application/json', 200);
       finally
         JSONRes.Free;
@@ -437,7 +395,7 @@ begin
   end;
 
   if Assigned(JSONData) then JSONData.Free;
-  SQLQueryBarang.Close;
+  SQLQueryUser.Close;
 end;
 
 procedure TFormUtama.BrookURLRouter1Routes2RequestMethod(ASender: TObject;
@@ -469,33 +427,32 @@ begin
     vUser := JSONObject.Get('username', '');
     vPass := JSONObject.Get('password', '');
 
-    // 1. Cek Kredensial
+    if not ZConnectiondb.Connected then ZConnectiondb.Connect;
+
     SQLQueryUser.Close;
     SQLQueryUser.SQL.Text := 'SELECT id_user FROM users WHERE username = :user AND password = :pass';
     SQLQueryUser.ParamByName('user').AsString := vUser;
     SQLQueryUser.ParamByName('pass').AsString := vPass;
     SQLQueryUser.Open;
 
-    if not SQLQueryUser.EOF then
+    if not SQLQueryUser.IsEmpty then
     begin
       vID := SQLQueryUser.FieldByName('id_user').AsInteger;
 
-      // 2. Generate Token Otomatis (Menggunakan GUID)
+      // Generate Token Otomatis
       vToken := Brook.SHA1(TGUID.NewGuid.ToString + vUser + DateTimeToStr(Now));
 
-      // 3. Simpan Token ke Database
+      // Simpan Token ke Database
       SQLQueryUser.Close;
       SQLQueryUser.SQL.Text := 'UPDATE users SET token = :token WHERE id_user = :id';
       SQLQueryUser.ParamByName('token').AsString := vToken;
       SQLQueryUser.ParamByName('id').AsInteger := vID;
       SQLQueryUser.ExecSQL;
-      SQLTransactionUser.CommitRetaining;
 
-      // 4. Kirim Token ke Client
       JSONRes := TJSONObject.Create;
       try
         JSONRes.Add('status', 'success');
-        JSONRes.Add('token', vToken); // Client harus menyimpan token ini
+        JSONRes.Add('token', vToken);
         JSONRes.Add('username', vUser);
         AResponse.Send(JSONRes.AsJSON, 'application/json', 200);
       finally
@@ -507,7 +464,7 @@ begin
 
   finally
     if Assigned(JSONData) then JSONData.Free;
-    SQLQueryBarang.Close;
+    SQLQueryUser.Close;
   end;
 end;
 
@@ -534,6 +491,11 @@ end;
 procedure TFormUtama.lbLinkMouseLeave(Sender: TObject);
 begin
   lbLink.Font.Style := lbLink.Font.Style + [fsUnderline];
+end;
+
+procedure TFormUtama.ZConnection1AfterReconnect(Sender: TObject);
+begin
+
 end;
 
 procedure TFormUtama.UpdateControls;
