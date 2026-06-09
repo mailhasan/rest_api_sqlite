@@ -243,5 +243,6 @@ Sebelum menjalankan skrip pengujian, pastikan bahwa berkas eksekusi ApacheBench 
 1. **Jalur Akses Default (XAMPP):** Jika Anda menggunakan XAMPP untuk Windows, alat ini secara default sudah terinstal dan berada pada direktori:
    ```text
    C:\xampp\apache\bin\ab.exe
+   cara Testing C:\xampp\apache\bin\ab.exe -n 100 -c 10 -H "Authorization: ismail" http://localhost:8888/barang
 
 ## dikembangkan oleh [Ismail Hasan](https://www.google.com/search?q=https://ismailhasan.web.id) - **Nfi Kreatif**
