@@ -8,7 +8,8 @@ uses
   Classes, SysUtils, SQLite3Conn, SQLDB, Forms, Controls, Graphics, Dialogs,
   Spin, LCLIntf, StdCtrls, ActnList, ZDataset, ZConnection, BrookHTTPServer,
   BrookURLRouter, BrookHTTPResponse, BrookHTTPRequest, BrookUtility, fpjson,
-  jsonparser;
+  jsonparser,
+  zstream; // <-- Tambahkan ini untuk mengaktifkan fungsi kompresi GZIP asli FPC;
 
 type
 
@@ -53,6 +54,9 @@ type
       ARoute: TBrookURLRoute; ARequest: TBrookHTTPRequest;
       AResponse: TBrookHTTPResponse; var AAllowed: Boolean);
     procedure BrookURLRouter1Routes3Request(ASender: TObject;
+      ARoute: TBrookURLRoute; ARequest: TBrookHTTPRequest;
+      AResponse: TBrookHTTPResponse);
+    procedure BrookURLRouter1Routes4Request(ASender: TObject;
       ARoute: TBrookURLRoute; ARequest: TBrookHTTPRequest;
       AResponse: TBrookHTTPResponse);
     procedure edPortChange(Sender: TObject);
@@ -486,6 +490,105 @@ begin
   finally
     if Assigned(JSONData) then JSONData.Free;
     SQLQueryUser.Close;
+  end;
+end;
+
+///Fungsi Pembantu (Helper) Kompresi GZIP Murni Pascal
+function KompresStringKeGZip(const AInput: string): string;
+var
+  vStreamInput: TStringStream;
+  vStreamOutput: TStringStream;
+  vKompresor: TCompressionStream;
+begin
+  Result := '';
+  if AInput = '' then Exit;
+
+  vStreamInput := TStringStream.Create(AInput);
+  vStreamOutput := TStringStream.Create('');
+
+  // cldefault adalah level kompresi default zlib murni FPC
+  vKompresor := TCompressionStream.Create(cldefault, vStreamOutput);
+  try
+    vKompresor.CopyFrom(vStreamInput, vStreamInput.Size);
+    vKompresor.Free; // Wajib di-free duluan agar seluruh buffer masuk ke vStreamOutput
+
+    Result := vStreamOutput.DataString;
+  finally
+    vStreamInput.Free;
+    vStreamOutput.Free;
+  end;
+end;
+
+///Dengan mengaktifkan kompresi Gzip / Deflate,
+procedure TFormUtama.BrookURLRouter1Routes4Request(ASender: TObject;
+  ARoute: TBrookURLRoute; ARequest: TBrookHTTPRequest;
+  AResponse: TBrookHTTPResponse);
+var
+  vNama, vKode: string;
+  vJSON, vJSONKompres: string;
+  JSONArray: TJSONArray;
+  JSONObject: TJSONObject;
+  vQueryLokal: TZQuery;
+begin
+  if not IsAuthenticatedtoken(ARequest, AResponse) then Exit;
+
+  if not ZConnectiondb.Connected then ZConnectiondb.Connect;
+
+  vNama := ARequest.Params.Values['nama'];
+  vKode := ARequest.Params.Values['kode'];
+
+  JSONArray := TJSONArray.Create;
+  vQueryLokal := TZQuery.Create(nil);
+  try
+    vQueryLokal.Connection := ZConnectiondb;
+    vQueryLokal.SQL.Add('SELECT id_barang, nama_barang, harga, stok FROM barang WHERE 1=1');
+
+    if vKode <> '' then
+    begin
+      vQueryLokal.SQL.Add('AND id_barang = :kode');
+      vQueryLokal.ParamByName('kode').AsString := vKode;
+    end;
+
+    if vNama <> '' then
+    begin
+      vQueryLokal.SQL.Add('AND nama_barang LIKE :nama');
+      vQueryLokal.ParamByName('nama').AsString := '%' + vNama + '%';
+    end;
+
+    vQueryLokal.SQL.Add('LIMIT 500');
+    vQueryLokal.Open;
+
+    while not vQueryLokal.EOF do
+    begin
+      JSONObject := TJSONObject.Create;
+      JSONObject.Add('id', vQueryLokal.FieldByName('id_barang').AsInteger);
+      JSONObject.Add('nama', vQueryLokal.FieldByName('nama_barang').AsString);
+      JSONObject.Add('harga', vQueryLokal.FieldByName('harga').AsFloat);
+      JSONObject.Add('stok', vQueryLokal.FieldByName('stok').AsInteger);
+      JSONArray.Add(JSONObject);
+      vQueryLokal.Next;
+    end;
+
+    vJSON := JSONArray.AsJSON;
+
+    // -------------------------------------------------------------------
+    // PERBAIKAN LOGIKA KOMPRESI STRATEGI MANUAL
+    // -------------------------------------------------------------------
+    // Gunakan fungsi utilitas bawaan Brook untuk kompresi string ke GZIP
+    // Panggil fungsi pembantu baru yang menggunakan TCompressionStream
+    vJSONKompres := KompresStringKeGZip(vJSON);
+
+    // Set Header HTTP agar client / browser tahu ini adalah kompresi zlib/deflate
+    AResponse.Headers.Add('Content-Encoding', 'deflate');
+
+    // Kirim data hasil kompresi
+    AResponse.Send(vJSONKompres, 'application/json; charset=utf-8', 200);
+    // -------------------------------------------------------------------
+
+  finally
+    vQueryLokal.Close;
+    vQueryLokal.Free;
+    JSONArray.Free;
   end;
 end;
 
