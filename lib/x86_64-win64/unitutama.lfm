@@ -111,6 +111,11 @@ object FormUtama: TFormUtama
         Pattern = '/barang_kompres'
         Methods = [rmGET]
         OnRequest = BrookURLRouter1Routes4Request
+      end    
+      item
+        Pattern = '/barang_limit'
+        Methods = [rmGET]
+        OnRequest = BrookURLRouter1Routes5Request
       end>
     Left = 176
     Top = 168

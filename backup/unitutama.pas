@@ -59,6 +59,9 @@ type
     procedure BrookURLRouter1Routes4Request(ASender: TObject;
       ARoute: TBrookURLRoute; ARequest: TBrookHTTPRequest;
       AResponse: TBrookHTTPResponse);
+    procedure BrookURLRouter1Routes5Request(ASender: TObject;
+      ARoute: TBrookURLRoute; ARequest: TBrookHTTPRequest;
+      AResponse: TBrookHTTPResponse);
     procedure edPortChange(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure lbLinkClick(Sender: TObject);
@@ -66,9 +69,10 @@ type
     procedure lbLinkMouseLeave(Sender: TObject);
     procedure ZConnection1AfterReconnect(Sender: TObject);
   private
+   FIPTracker: TStringList; // <-- Tambahkan ini untuk melacak histori IP klien
    function IsAuthenticated(ARequest: TBrookHTTPRequest; AResponse: TBrookHTTPResponse): Boolean;
    function IsAuthenticatedtoken(ARequest: TBrookHTTPRequest; AResponse: TBrookHTTPResponse): Boolean;
-   //function KompresStringKeGZip(const AInput: string): string;
+   function CheckRateLimit(AIP: string): Boolean; // <-- Fungsi pengecek pembatas kecepatan
   public
    procedure UpdateControls; {$IFNDEF DEBUG}inline;{$ENDIF}
   end;
@@ -129,6 +133,58 @@ begin
 
   finally
     SQLQueryUser.Close;
+  end;
+end;
+
+///Koding Fungsi Middleware CheckRateLimit
+function TFormUtama.CheckRateLimit(AIP: string): Boolean;
+var
+  vIndex: Integer;
+  vHitCount: Integer;
+  vCurrentTime: TDateTime;
+  vLastResetTime: TDateTime;
+  vDataStr, vHitStr, vTimeStr: string;
+  vPosPemisah: Integer;
+begin
+  Result := True;
+  vCurrentTime := Now;
+
+  vIndex := FIPTracker.IndexOfName(AIP);
+
+  if vIndex = -1 then
+  begin
+    // IP Baru: Daftarkan langsung
+    FIPTracker.Add(AIP + '=1|' + DateTimeToStr(vCurrentTime + (1 / 1440))); // 1/1440 = 1 menit
+  end
+  else
+  begin
+    // IP Lama: Ambil string datanya (Format: HitCount|ResetTime)
+    vDataStr := FIPTracker.ValueFromIndex[vIndex];
+    vPosPemisah := Pos('|', vDataStr);
+
+    vHitStr := Copy(vDataStr, 1, vPosPemisah - 1);
+    vTimeStr := Copy(vDataStr, vPosPemisah + 1, Length(vDataStr));
+
+    vHitCount := StrToIntDef(vHitStr, 0);
+    vLastResetTime := StrToDateTimeDef(vTimeStr, vCurrentTime);
+
+    if vCurrentTime > vLastResetTime then
+    begin
+      // Masa limitasi lewat: Reset hitungan ke 1
+      FIPTracker.Strings[vIndex] := AIP + '=1|' + DateTimeToStr(vCurrentTime + (1 / 1440));
+    end
+    else
+    begin
+      // Masih dalam rentang 1 menit: Evaluasi jumlah Hit
+      Inc(vHitCount);
+      if vHitCount > 10 then // Batas 10 request per menit
+      begin
+        Result := False;
+      end;
+
+      // Update string di indeks tersebut secara langsung (Aman dari pembatasan sorted)
+      FIPTracker.Strings[vIndex] := AIP + '=' + IntToStr(vHitCount) + '|' + DateTimeToStr(vLastResetTime);
+    end;
   end;
 end;
 
@@ -593,6 +649,61 @@ begin
   end;
 end;
 
+
+///Router Baru /barang_limit
+procedure TFormUtama.BrookURLRouter1Routes5Request(ASender: TObject;
+  ARoute: TBrookURLRoute; ARequest: TBrookHTTPRequest;
+  AResponse: TBrookHTTPResponse);
+var
+  vClientIP: string;
+  vJSON: string;
+  JSONArray: TJSONArray;
+  JSONObject: TJSONObject;
+  vQueryLokal: TZQuery;
+begin
+  // 1. Ambil Alamat IP Klien yang menembak server
+  vClientIP := ARequest.IP;
+  if vClientIP = '' then vClientIP := '127.0.0.1';
+
+  // 2. POS FILTER SECURITY: JALANKAN MIDDLEWARE RATE LIMITING
+  if not CheckRateLimit(vClientIP) then
+  begin
+    // Beri respon standar dunia: 429 Too Many Requests
+    AResponse.Headers.Add('Retry-After', '60'); // Beritahu klien untuk mencoba lagi dalam 60 detik
+    AResponse.Send('{"status": "error", "message": "Too Many Requests. Batas maksimal 10 request per menit!"}',
+      'application/json', 429);
+    Exit; // Blokir di sini, jangan biarkan masuk ke database!
+  end;
+
+  // 3. Jika lolos filter rate-limit, lakukan koding database seperti biasa
+  if not IsAuthenticatedtoken(ARequest, AResponse) then Exit;
+  if not ZConnectiondb.Connected then ZConnectiondb.Connect;
+
+  JSONArray := TJSONArray.Create;
+  vQueryLokal := TZQuery.Create(nil);
+  try
+    vQueryLokal.Connection := ZConnectiondb;
+    vQueryLokal.SQL.Add('SELECT id_barang, nama_barang, harga, stok FROM barang LIMIT 10');
+    vQueryLokal.Open;
+
+    while not vQueryLokal.EOF do
+    begin
+      JSONObject := TJSONObject.Create;
+      JSONObject.Add('id', vQueryLokal.FieldByName('id_barang').AsInteger);
+      JSONObject.Add('nama', vQueryLokal.FieldByName('nama_barang').AsString);
+      JSONArray.Add(JSONObject);
+      vQueryLokal.Next;
+    end;
+
+    vJSON := JSONArray.AsJSON;
+    AResponse.Send(vJSON, 'application/json; charset=utf-8', 200);
+  finally
+    vQueryLokal.Close;
+    vQueryLokal.Free;
+    JSONArray.Free;
+  end;
+end;
+
 procedure TFormUtama.edPortChange(Sender: TObject);
 begin
   UpdateControls;
@@ -601,6 +712,9 @@ end;
 procedure TFormUtama.FormShow(Sender: TObject);
 begin
   edPort.Text:= '8888';
+
+  FIPTracker := TStringList.Create; // Create saat aplikasi jalan
+  FIPTracker.Sorted := True;        // Agar pencarian IP lebih cepat (Binary Search)
 end;
 
 procedure TFormUtama.lbLinkClick(Sender: TObject);

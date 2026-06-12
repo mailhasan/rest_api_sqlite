@@ -22,8 +22,8 @@
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="unitUtama"/>
         <IsVisibleTab Value="True"/>
-        <TopLine Value="66"/>
-        <CursorPos X="6" Y="71"/>
+        <TopLine Value="160"/>
+        <CursorPos X="90" Y="192"/>
         <UsageCount Value="56"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -44,14 +44,6 @@
       </Unit>
     </Units>
     <JumpHistory HistoryIndex="29">
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="195" Column="10" TopLine="178"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="196" Column="10" TopLine="179"/>
-      </Position>
       <Position>
         <Filename Value="unitutama.pas"/>
         <Caret Line="405" Column="24" TopLine="387"/>
@@ -122,19 +114,11 @@
       </Position>
       <Position>
         <Filename Value="unitutama.pas"/>
-        <Caret Line="495" Column="48" TopLine="560"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
         <Caret Line="11" Column="22"/>
       </Position>
       <Position>
         <Filename Value="unitutama.pas"/>
         <Caret Line="555" Column="23" TopLine="538"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="498" Column="3" TopLine="525"/>
       </Position>
       <Position>
         <Filename Value="unitutama.pas"/>
@@ -163,6 +147,22 @@
       <Position>
         <Filename Value="unitutama.pas"/>
         <Caret Line="586" Column="74" TopLine="562"/>
+      </Position>
+      <Position>
+        <Filename Value="unitutama.pas"/>
+        <Caret Line="72" Column="92" TopLine="93"/>
+      </Position>
+      <Position>
+        <Filename Value="unitutama.pas"/>
+        <Caret Line="144" Column="61" TopLine="119"/>
+      </Position>
+      <Position>
+        <Filename Value="unitutama.pas"/>
+        <Caret Line="583" Column="3" TopLine="572"/>
+      </Position>
+      <Position>
+        <Filename Value="unitutama.pas"/>
+        <Caret Line="697" Column="7" TopLine="647"/>
       </Position>
     </JumpHistory>
     <RunParams>
