@@ -16,6 +16,7 @@ Project ini adalah contoh implementasi **REST API** performa tinggi menggunakan 
 * Zeos Connection Pool
 * Verifikasi Kakas Penguji (ApacheBench)
 * Kompresi di Brook Framework
+* API Rate Limiting untuk Brook Framework
 
 ---
 
@@ -483,6 +484,280 @@ ab.exe -n 5000 -c 100
 ```
 
 Pastikan selalu membandingkan hasil endpoint normal dan endpoint terkompresi agar manfaat optimasi dapat terlihat secara nyata.
+
+---
+# API Rate Limiting untuk Brook Framework (Lazarus / Free Pascal)
+
+Implementasi sederhana **API Rate Limiting berbasis alamat IP** menggunakan **Brook Framework** dan **Free Pascal (Lazarus)**.
+
+Tujuan utama proyek ini adalah melindungi REST API dari:
+
+* Request berulang akibat bug pada aplikasi client.
+* Brute force attack.
+* Spam request.
+* Lonjakan trafik tidak normal.
+* Beban database yang tidak diperlukan.
+
+---
+
+## Fitur
+
+* Pembatasan request berdasarkan IP Address.
+* Maksimal 10 request per menit untuk setiap IP.
+* Penyimpanan data di memori menggunakan `TStringList`.
+* Tidak membutuhkan database tambahan.
+* Ringan dan cepat.
+* Mudah diintegrasikan dengan Brook Framework.
+
+---
+
+## Cara Kerja
+
+Setiap alamat IP yang mengakses API akan dicatat dalam memori dengan format:
+
+```text
+JumlahRequest|WaktuReset
+```
+
+Contoh:
+
+```text
+192.168.1.10=5|2026-06-12 10:30:00
+```
+
+Keterangan:
+
+* `5` = jumlah request yang telah dilakukan.
+* `2026-06-12 10:30:00` = waktu reset counter.
+
+Jika jumlah request melebihi batas yang ditentukan sebelum waktu reset tercapai, server akan mengembalikan:
+
+```http
+HTTP/1.1 429 Too Many Requests
+```
+
+---
+
+## Struktur Variabel
+
+Tambahkan variabel berikut pada form utama atau modul server:
+
+```pascal
+private
+  FIPTracker: TStringList;
+```
+
+Saat inisialisasi:
+
+```pascal
+FIPTracker := TStringList.Create;
+FIPTracker.Sorted := False;
+```
+
+Saat aplikasi ditutup:
+
+```pascal
+FreeAndNil(FIPTracker);
+```
+
+---
+
+## Fungsi Rate Limiting
+
+```pascal
+function TFormUtama.CheckRateLimit(AIP: string): Boolean;
+var
+  vIndex: Integer;
+  vHitCount: Integer;
+  vCurrentTime: TDateTime;
+  vLastResetTime: TDateTime;
+  vDataStr, vHitStr, vTimeStr: string;
+  vPosPemisah: Integer;
+begin
+  Result := True;
+
+  vCurrentTime := Now;
+  vIndex := FIPTracker.IndexOfName(AIP);
+
+  if vIndex = -1 then
+  begin
+    FIPTracker.Add(AIP + '=1|' +
+      DateTimeToStr(vCurrentTime + (1 / 1440)));
+  end
+  else
+  begin
+    vDataStr := FIPTracker.ValueFromIndex[vIndex];
+
+    vPosPemisah := Pos('|', vDataStr);
+
+    vHitStr := Copy(vDataStr, 1, vPosPemisah - 1);
+    vTimeStr := Copy(vDataStr, vPosPemisah + 1, Length(vDataStr));
+
+    vHitCount := StrToIntDef(vHitStr, 0);
+    vLastResetTime := StrToDateTimeDef(vTimeStr, vCurrentTime);
+
+    if vCurrentTime > vLastResetTime then
+    begin
+      FIPTracker.Strings[vIndex] :=
+        AIP + '=1|' +
+        DateTimeToStr(vCurrentTime + (1 / 1440));
+    end
+    else
+    begin
+      Inc(vHitCount);
+
+      if vHitCount > 10 then
+        Result := False;
+
+      FIPTracker.Strings[vIndex] :=
+        AIP + '=' +
+        IntToStr(vHitCount) + '|' +
+        DateTimeToStr(vLastResetTime);
+    end;
+  end;
+end;
+```
+
+---
+
+## Implementasi pada Route Brook
+
+Contoh penggunaan sebelum proses bisnis dijalankan:
+
+```pascal
+if not CheckRateLimit(ClientIP) then
+begin
+  Context.Response.StatusCode := 429;
+  Context.Response.Content :=
+    '{"status":"error","message":"Too Many Requests"}';
+  Exit;
+end;
+```
+
+Dengan pendekatan ini request akan ditolak sebelum:
+
+* Query database dijalankan.
+* Koneksi Zeos dibuka.
+* Resource server digunakan lebih lanjut.
+
+---
+
+## Pengujian Menggunakan ApacheBench
+
+Contoh pengujian:
+
+```cmd
+ab.exe -n 15 -c 1 ^
+-H "Authorization: ismail" ^
+http://localhost:8888/barang_limit
+```
+
+Parameter:
+
+| Parameter | Keterangan         |
+| --------- | ------------------ |
+| -n 15     | Total request      |
+| -c 1      | Concurrent request |
+| -H        | Header tambahan    |
+
+---
+
+## Hasil Benchmark
+
+```text
+Complete requests:      15
+Failed requests:        0
+Non-2xx responses:      15
+
+Requests per second:    4810.78
+Processing Time:        0 ms
+```
+
+---
+
+## Analisis
+
+### Request Berhasil Diblokir
+
+```text
+Non-2xx responses: 15
+```
+
+Menunjukkan bahwa seluruh request yang melebihi batas berhasil ditolak.
+
+### Waktu Pemrosesan Sangat Rendah
+
+```text
+Processing Time: 0 ms
+```
+
+Karena proses pengecekan dilakukan langsung di RAM tanpa akses database.
+
+### Throughput Tinggi
+
+```text
+4810 Request per Second
+```
+
+Server tetap mampu merespons dengan cepat meskipun sedang melakukan pemblokiran request.
+
+---
+
+## Catatan Penting
+
+### Jangan Gunakan Sorted=True
+
+Hindari konfigurasi berikut:
+
+```pascal
+FIPTracker.Sorted := True;
+```
+
+Karena dapat menyebabkan exception:
+
+```text
+EStringListError:
+Operation not allowed on sorted list
+```
+
+ketika data dimodifikasi secara dinamis.
+
+Gunakan:
+
+```pascal
+FIPTracker.Sorted := False;
+```
+
+---
+
+## Keterbatasan
+
+Implementasi ini cocok untuk:
+
+* Belajar Rate Limiting.
+* REST API internal.
+* Sistem klinik.
+* Sistem inventory.
+* UMKM.
+
+Untuk skala besar disarankan menggunakan:
+
+* Redis
+* Memcached
+* Shared Memory
+* Distributed Cache
+
+agar dapat digunakan pada banyak instance server sekaligus.
+
+---
+
+## Teknologi
+
+* Lazarus IDE
+* Free Pascal Compiler (FPC)
+* Brook Framework
+* ZeosLib
+* ApacheBench
 
 ---
 
