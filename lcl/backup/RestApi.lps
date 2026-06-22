@@ -12,7 +12,7 @@
         <WindowIndex Value="-1"/>
         <TopLine Value="-1"/>
         <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="64"/>
+        <UsageCount Value="65"/>
       </Unit>
       <Unit>
         <Filename Value="unitutama.pas"/>
@@ -22,11 +22,20 @@
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="unitUtama"/>
         <IsVisibleTab Value="True"/>
-        <TopLine Value="784"/>
-        <CursorPos X="25" Y="806"/>
-        <UsageCount Value="64"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="821"/>
+        <CursorPos X="70" Y="844"/>
+        <UsageCount Value="65"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="uminimalredis.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="uMinimalRedis"/>
+        <CursorPos X="64" Y="27"/>
+        <UsageCount Value="23"/>
+        <Loaded Value="True"/>
       </Unit>
       <Unit>
         <Filename Value="..\..\fpcupdeluxe\ccr\brookframework\Source\BrookUtility.pas"/>
@@ -42,135 +51,10 @@
         <CursorPos Y="547"/>
         <UsageCount Value="11"/>
       </Unit>
-      <Unit>
-        <Filename Value="uminimalredis.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="uMinimalRedis"/>
-        <EditorIndex Value="1"/>
-        <CursorPos X="38" Y="17"/>
-        <UsageCount Value="22"/>
-        <Loaded Value="True"/>
-      </Unit>
     </Units>
-    <JumpHistory HistoryIndex="29">
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="151" Column="4" TopLine="147"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="339" Column="101" TopLine="311"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="119" Column="58" TopLine="99"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="27" Column="20" TopLine="4"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="113" Column="5" TopLine="96"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="212" Column="44" TopLine="187"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="504" Column="79" TopLine="482"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="153" Column="32" TopLine="130"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="133" Column="20" TopLine="122"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="151" Column="7" TopLine="125"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="307" Column="73" TopLine="294"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="174" Column="4" TopLine="170"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="11" Column="22"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="555" Column="23" TopLine="538"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="564" Column="7" TopLine="531"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="504" Column="24" TopLine="482"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="12" Column="3"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="71" Column="63" TopLine="62"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="502" Column="17" TopLine="485"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="521" Column="5" TopLine="494"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="586" Column="74" TopLine="562"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="72" Column="92" TopLine="93"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="144" Column="61" TopLine="119"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="583" Column="3" TopLine="572"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="697" Column="7" TopLine="647"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="192" Column="90" TopLine="160"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="737" Column="69" TopLine="717"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="13" Column="55"/>
-      </Position>
+    <JumpHistory>
       <Position>
         <Filename Value="uminimalredis.pas"/>
-      </Position>
-      <Position>
-        <Filename Value="unitutama.pas"/>
-        <Caret Line="22" Column="37"/>
       </Position>
     </JumpHistory>
     <RunParams>

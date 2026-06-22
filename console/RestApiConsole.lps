@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectSession>
+    <PathDelim Value="\"/>
+    <Version Value="12"/>
+    <BuildModes Active="Default"/>
+    <Units>
+      <Unit>
+        <Filename Value="RestApiConsole.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <TopLine Value="44"/>
+        <CursorPos X="80" Y="96"/>
+        <UsageCount Value="23"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="uhandlerapi.pas"/>
+        <IsPartOfProject Value="True"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="131"/>
+        <CursorPos X="58" Y="158"/>
+        <UsageCount Value="21"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="uminimalredis.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="uMinimalRedis"/>
+        <EditorIndex Value="3"/>
+        <TopLine Value="101"/>
+        <CursorPos Y="163"/>
+        <UsageCount Value="21"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="C:\fpcupdeluxe\config_lazarus\onlinepackagemanager\packages\brookfreepascal\brokers\brookfcleventlogbroker.pas"/>
+        <UnitName Value="BrookFCLEventLogBroker"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="74" Y="27"/>
+        <UsageCount Value="10"/>
+      </Unit>
+      <Unit>
+        <Filename Value="C:\fpcupdeluxe\ccr\zeos\src\dbc\ZDbcSqLite.pas"/>
+        <EditorIndex Value="2"/>
+        <TopLine Value="722"/>
+        <CursorPos Y="740"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+        <DefaultSyntaxHighlighter Value="Delphi"/>
+      </Unit>
+    </Units>
+    <JumpHistory HistoryIndex="21">
+      <Position>
+        <Filename Value="RestApiConsole.lpr"/>
+        <Caret Line="10" Column="3"/>
+      </Position>
+      <Position>
+        <Filename Value="uhandlerapi.pas"/>
+        <Caret Line="465" Column="5" TopLine="427"/>
+      </Position>
+      <Position>
+        <Filename Value="RestApiConsole.lpr"/>
+        <Caret Line="42" Column="99" TopLine="10"/>
+      </Position>
+      <Position>
+        <Filename Value="uminimalredis.pas"/>
+        <Caret Line="163" TopLine="125"/>
+      </Position>
+      <Position>
+        <Filename Value="uhandlerapi.pas"/>
+        <Caret Line="63" Column="4" TopLine="44"/>
+      </Position>
+      <Position>
+        <Filename Value="uhandlerapi.pas"/>
+        <Caret Line="62" Column="24" TopLine="44"/>
+      </Position>
+      <Position>
+        <Filename Value="uhandlerapi.pas"/>
+        <Caret Line="457" Column="63" TopLine="426"/>
+      </Position>
+      <Position>
+        <Filename Value="uhandlerapi.pas"/>
+        <Caret Line="456" Column="46" TopLine="426"/>
+      </Position>
+      <Position>
+        <Filename Value="uhandlerapi.pas"/>
+        <Caret Line="454" Column="93" TopLine="426"/>
+      </Position>
+      <Position>
+        <Filename Value="uhandlerapi.pas"/>
+        <Caret Line="456" Column="46" TopLine="426"/>
+      </Position>
+      <Position>
+        <Filename Value="uhandlerapi.pas"/>
+        <Caret Line="466" Column="52" TopLine="428"/>
+      </Position>
+      <Position>
+        <Filename Value="uhandlerapi.pas"/>
+        <Caret Line="457" Column="11" TopLine="431"/>
+      </Position>
+      <Position>
+        <Filename Value="uhandlerapi.pas"/>
+        <Caret Line="463" Column="66" TopLine="428"/>
+      </Position>
+      <Position>
+        <Filename Value="uhandlerapi.pas"/>
+        <Caret Line="458" Column="46" TopLine="428"/>
+      </Position>
+      <Position>
+        <Filename Value="uhandlerapi.pas"/>
+        <Caret Line="499" Column="7" TopLine="462"/>
+      </Position>
+      <Position>
+        <Filename Value="uhandlerapi.pas"/>
+        <Caret Line="463" Column="18" TopLine="443"/>
+      </Position>
+      <Position>
+        <Filename Value="uhandlerapi.pas"/>
+        <Caret Line="475" Column="60" TopLine="451"/>
+      </Position>
+      <Position>
+        <Filename Value="uhandlerapi.pas"/>
+        <Caret Line="327" Column="5" TopLine="289"/>
+      </Position>
+      <Position>
+        <Filename Value="RestApiConsole.lpr"/>
+        <Caret Line="10" Column="14"/>
+      </Position>
+      <Position>
+        <Filename Value="RestApiConsole.lpr"/>
+        <Caret Line="81" Column="3" TopLine="61"/>
+      </Position>
+      <Position>
+        <Filename Value="RestApiConsole.lpr"/>
+        <Caret Line="77" Column="28" TopLine="67"/>
+      </Position>
+      <Position>
+        <Filename Value="uhandlerapi.pas"/>
+        <Caret Line="218" Column="52" TopLine="193"/>
+      </Position>
+    </JumpHistory>
+    <RunParams>
+      <FormatVersion Value="2"/>
+      <Modes ActiveMode=""/>
+    </RunParams>
+  </ProjectSession>
+</CONFIG>
